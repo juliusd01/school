@@ -1,0 +1,77 @@
+---
+title: "Evidencia1"
+author: "Grupo1"
+date: "24 8 2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Primeros pasos:
+```{r message=FALSE, warning=FALSE}
+library("stats")
+library("psych")
+library("readxl")
+library("MASS")
+library("ISLR")
+library("fRegression")
+library("vcd")
+```
+
+```{r}
+fondo <- read_excel("C:/Users/User/Documents/Tec de Monterrey/Analysis de Datos/Evidencia1/Fojal.xlsx")
+str(fondo)
+```
+
+Tarea 1: Linear Model
+```{r}
+modelo = lm(fondo$Default~ fondo$`WC/TA`+fondo$`RE/TA`+fondo$`EBIT/TA`)
+summary(modelo)
+```
+
+La siguiente, es solo análisis en más detalle
+```{r}
+#Prueba a autocorrelación entre los variables.
+cor(fondo$`WC/TA`, fondo$`RE/TA`)
+cor(fondo$`WC/TA`, fondo$`EBIT/TA`)
+cor(fondo$`RE/TA`, fondo$`EBIT/TA`)
+#Alta autocorrelación entre RE/TA y EBIT/TA, que normalmente es negativo para el modelo linear.
+
+par(mfrow=c(2,2))
+plot(modelo)
+
+#
+
+```
+
+Tarea 2: Modelo de regresión logística
+```{r}
+modelo_logístico = glm(Default~`WC/TA`+`RE/TA`+`EBIT/TA`, data=fondo, family = binomial(link="logit"))
+summary(modelo_logístico)
+
+modelo_probit = glm(Default~`WC/TA`+`RE/TA`+`EBIT/TA`, data=fondo, family = binomial(link="probit"))
+summary(modelo_probit)
+
+CIA_Logit = AIC(modelo_logístico)
+CIA_Logit
+
+CIA_Probit = AIC(modelo_probit)
+CIA_Probit
+
+#Probit está mejor qué Probit, porque AIC para Probit es menor qué AIC para Logit
+
+```
+
+```{r}
+predicciones1 <- ifelse(test = modelo_probit$fitted.values > 0.025, yes =1, no = 0)
+matriz_confusion1 <- table(predicciones1,modelo_probit$model$Default,dnn = c( "predicciones","observaciones"))
+matriz_confusion1
+```
+
+```{r}
+predicciones2 <- ifelse(test = modelo_logístico$fitted.values > 0.025, yes =1, no = 0)
+matriz_confusion2 <- table(modelo_logístico$model$Default, predicciones2,dnn = c("observaciones", "predicciones"))
+matriz_confusion2
+```

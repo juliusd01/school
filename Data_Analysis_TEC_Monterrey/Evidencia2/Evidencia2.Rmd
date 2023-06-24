@@ -1,0 +1,199 @@
+---
+title: "Evidencia2"
+author: "Grupo 1"
+date: "2022-09-04"
+output: html_document
+---
+1)
+
+librerías
+```{r message=FALSE, warning=FALSE}
+library("stats")
+library("psych")
+library("readxl")
+library("MASS")
+library("ISLR")
+library("fRegression")
+library("vcd")
+library("dplyr")
+library("openxlsx")
+```
+
+
+
+```{r}
+getwd()
+setwd("C:/Users/User/Documents/Tec de Monterrey/Analysis de Datos/Evidencia2")
+fondo <- read_excel("Fojal.xlsx")
+str(fondo)
+```
+
+
+Check para missing values
+```{r}
+fondo[!complete.cases(fondo),]
+
+```
+No hay missing values!
+
+Crear dummy variables para aprobadas y no aprobadas:
+```{r}
+fondo$aprobado <- ifelse(fondo$Default==0, 1, 0)
+fondo$no_aprobado <- ifelse(fondo$Default==1, 1, 0)
+mean(fondo$aprobado)
+```
+0 significa que el credito es aprobado.
+Hay más creditos que son aprobados (98,2%). 
+El estar cerca de 1 podemos inferir con la estadística descriptiva que tenemos mas gente siendo aprobada para los créditos que personas que no.
+
+2)
+```{r}
+fondo <- select(fondo, ID, Year, Default, `WC/TA`, `RE/TA`, `EBIT/TA`, `ME/TL`, `S/TA`)
+```
+
+Seperar la base de datos en Test y Train.
+```{r message=FALSE, warning=FALSE}
+library("caret")
+
+set.seed(11)
+train = createDataPartition(y = fondo$Default, p=0.8, list=FALSE, times = 1)
+datos_train = fondo[train,]
+datos_test = fondo[-train,]
+```
+
+
+Usamos el modelo_probit de la Evidencia 1 porque ese modelo fue mejor que el modelo_logístico.
+
+```{r, warning=FALSE}
+modelo_probit = glm(Default~., data=fondo, family = binomial(link="probit"))
+```
+
+Forward Model
+
+```{r}
+modelo_forward <- step(modelo_probit, direction = "forward", data=datos_train)
+```
+
+```{r}
+summary(modelo_forward)
+```
+Las variables importantes para la asignación de crédito son RE/TA, EBIT/TA, WC/TA, ID, Year, ME/TL y S/TA.
+AIC es 487.91
+
+
+Backward Model
+
+```{r, warning=FALSE, results='hide'}
+modelo_backward <- step(modelo_probit, direction = "backward", data=datos_train)
+```
+
+```{r}
+summary(modelo_backward)
+```
+Las variables importantes para la asignación de crédito son ID, RE/TA, EBIT/TA, ME/TL y S/TA.
+AIC es 486.43 que significa que el modelo "Backward" es mejor (AIC Backward < AIC Forward).
+
+Entrenar el modelo "Backward".
+```{r, warning=FALSE}
+datos_train$Default <- as.factor(datos_train$Default)
+
+modelo_crédito<-train(Default ~ ID + `RE/TA` + `EBIT/TA` + `ME/TL` + `S/TA`, data=datos_train, method="glm", family=binomial(link="logit"))
+modelo_crédito
+modelo_crédito$finalModel
+```
+
+Predecir los resultados
+```{r}
+predictTest <- predict(modelo_crédito, datos_test)
+pred_credit <- predict(modelo_crédito, datos_test, type="prob")
+head(predictTest, 5)
+head(pred_credit, 5)
+```
+
+```{r}
+predictTest <- as.numeric(levels(predictTest))[predictTest]
+
+cor(datos_test$Default, predictTest)
+```
+
+Matriz de confusión para el modelo "Backward":
+```{r}
+predicciones1 <- ifelse(pred_credit$`1` > 0.22, yes = 1, no = 0)
+matriz_confusion <- table(predicciones1,datos_test$Default,dnn = c( "predicciones","observaciones"))
+matriz_confusion
+```
+```{r}
+Recall <- matriz_confusion[2,2]/(matriz_confusion[2,2]+matriz_confusion[1,2])
+Recall
+Precision <- matriz_confusion[2,2]/(matriz_confusion[2,2]+matriz_confusion[2,1])
+Precision
+```
+
+Modelo Lasso
+
+Borramos la columna 3 porque no queremos el Default en nuestra predicción.
+```{r}
+library("glmnet")
+x = model.matrix(Default ~ ., fondo)[,-3]
+y = fondo$Default
+```
+
+Calculamos el mejor valor para lambda.
+```{r}
+set.seed(123) 
+cv_model = cv.glmnet(x,y,family="binomial",alpha=1) 
+bestlambda = cv_model$lambda.min
+bestlambda
+```
+
+```{r}
+plot(cv_model)
+```
+
+Es importante de estandardizar los variables.
+```{r}
+set.seed(1)
+best_lasso = glmnet(x,y,alpha=1, family="binomial", lambda=bestlambda, standardize = T)
+coef(best_lasso)
+```
+
+Predicimos los resultados de la base de datos datos_test.
+```{r}
+predLlink <- predict(best_lasso, as.matrix(datos_test[,1:7]), type="link")
+predLprobs <- predict(best_lasso, as.matrix(datos_test[,1:7]), type="response")
+predLlink[1:10]
+predLprobs[1:10]
+```
+
+Matriz de confusión de modelo Lasso:
+
+Para el modelo Lasso se requieren un valor de Cutoff alto porque las probabilidades son casi 1 para la mayoría de los predicciones.
+```{r}
+predicciones2 <- ifelse(predLprobs > 0.99995, yes = 1, no = 0)
+matriz_confusion2 <- table(predicciones2, datos_test$Default)
+matriz_confusion2
+```
+
+```{r}
+Recall <- matriz_confusion2[2,2]/(matriz_confusion2[2,2]+matriz_confusion2[1,2])
+Recall
+Precision <- matriz_confusion2[2,2]/(matriz_confusion2[2,2]+matriz_confusion2[2,1])
+Precision
+```
+
+
+El que sigue es la prueba de usar un red neuronal:
+```{r warning=FALSE, message=FALSE}
+library("neuralnet")
+set.seed(123)
+#RN <- neuralnet(Default ~ .,
+#               data = fondo,
+ #              hidden = c(12,7),
+  #             linear.output = F,
+   #            lifesign = 'full',
+    #           threshold = 0.05,
+     #          rep=1)
+```
+
+Por algún razón no podemos insertar los variables en la formula. Solo funciona con ID y Year. `WC/TA` por ejemploo no funciona y recibimos un error. Por eso, no podemos continuar con la análisis con el red neuronal :(
+

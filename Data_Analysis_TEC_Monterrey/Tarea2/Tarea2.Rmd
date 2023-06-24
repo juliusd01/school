@@ -1,0 +1,159 @@
+---
+title: "Tarea 2"
+author: "Julius Döbelt"
+date: "26/08/2022"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+1a) Top 30 del DAX (bolsa de valores alemana).
+```{r warning=FALSE, message=FALSE}
+library(quantmod)
+library(xml2)
+library(rvest)
+
+dax <- "https://finance.yahoo.com/quote/%5EGDAXI/components?p=%5EGDAXI"
+
+html <- read_html(dax)
+node <- html_nodes(html,"a")
+node<-html_text(node, trim=TRUE)
+tickers<-grep(pattern = ".DE", x = node, value = TRUE)
+symbols <- getSymbols(tickers, from="2017/01/01", to="2021/12/31")
+```
+
+```{r}
+print(symbols)
+```
+
+1b) Datos con Market Cap y Sectores de las acciones.
+```{r}
+library(readxl)
+acciones <- read_excel("Acciones.xlsx")
+
+```
+
+
+
+2a)
+```{r}
+#Solo uso el curso final de cada acción
+
+database <- NULL
+
+for (i in 1:30){
+  add_columna <- get(tickers[i])[,4]
+  database <- cbind(database, add_columna)
+}
+```
+
+2b)
+```{r}
+head(database,3) 
+#Tenemos 30 columnas, perfecto!
+```
+
+Hay missing values para DTG.DE, SHL.DE y HFG.DE. Pero no es un problema para la análisis.
+
+
+3a)
+```{r}
+return_database <- NULL
+
+for (i in 1:30){
+  ret <- get(tickers[i])[,4]
+  ret2 <- Delt(ret)
+  colnames(ret2) <- colnames(ret)
+  return_database <- cbind(return_database, ret2)
+}
+
+return_database <- return_database[-1,]
+
+```
+
+Calcular el retorno y la voladilidad diaria para las acciones.
+```{r}
+mean <- mean(return_database[,1], na.rm=T)
+sd <- sd(return_database[,1], na.rm=T)
+matrix <- matrix(c(mean, sd), 2,1)
+rownames(matrix) <- c("Promedio_Retorno", "Volatilidad")
+colnames(matrix) <- colnames(return_database)[1]
+
+for(i in 2:30){
+  mean <- mean(return_database[,i], na.rm=T)
+  sd <- sd(return_database[,i], na.rm=T)
+  matrix2 <- matrix(c(mean, sd), 2,1)
+  matrix <- cbind(matrix, matrix2)
+  colnames(matrix)[i] <- colnames(return_database)[i]
+}
+my_matrix <- t(matrix)
+print(my_matrix)
+```
+
+Calcular el Sharpe_Ratio para las acciones.
+```{r}
+library(dplyr)
+my_matrix <- as.data.frame(my_matrix)
+#Bono de Alemania es 0%
+RF <- (1.00)^(1/260)-1
+my_matrix <- my_matrix%>%
+  mutate(Sharpe_Ratio = round((Promedio_Retorno-RF)/Volatilidad,2))
+  print(my_matrix)
+
+```
+
+3b) Merge mi dato resumen de 3a) con los datos de 1b)
+```{r}
+my_matrix <- tibble::rownames_to_column(my_matrix, "Name")
+
+merged <- merge(my_matrix, acciones, by.x = "Name", by.y = "Name")
+print(merged)
+
+```
+
+Crear una variable para los sectores
+```{r}
+anasec <- merged%>%
+  group_by(Sector)%>%
+  summarise(retorno = mean(Promedio_Retorno), volatilidad = mean(Volatilidad), sharpe_Ratio = mean(Sharpe_Ratio))
+print (anasec)
+```
+
+3c)
+Análisis para empresas
+```{r}
+subset(merged$Name, merged$Promedio_Retorno==max(merged$Promedio_Retorno))
+max(merged$Promedio_Retorno)
+
+subset(merged$Name, merged$Volatilidad==min(merged$Volatilidad))
+min(merged$Volatilidad)
+
+subset(merged$Name, merged$Sharpe_Ratio==max(merged$Sharpe_Ratio))
+max(merged$Sharpe_Ratio)
+```
+DTG.DE tiene el retorno mayor con +0.0068 en promedio cada día
+BEI.DE tiene la volatilidad menor con 0.012
+El Sharpe_Ratio mayor tiene DTG.DE con 0.19
+
+Un punto muy importante: Para DTG.DE solo hay 20 puntos de datos porque empezió en la bolsa de valores el 10 de diciembre en 2021. Para un periodo más larga, probablemente los retornos y el SharpRatio no serían tan grande.
+
+
+Análisis para sectores
+```{r}
+subset(anasec$Sector, anasec$retorno==max(anasec$retorno))
+max(anasec$retorno)
+subset(anasec$Sector, anasec$volatilidad==min(anasec$volatilidad))
+min(anasec$volatilidad)
+subset(anasec$Sector, anasec$sharpe_Ratio==max(anasec$sharpe_Ratio))
+max(anasec$sharpe_Ratio)
+```
+Los resultados en los sectores también son influyendos del tiempo corto de DTG.DE en la bolsa. DTG.DE pertenece a "Industrials", qué tiene los retornos y el SharpRatio más grande.
+
+Retorno más alto es en el sector "Industrials" con 0.00184 (diario).
+Voladilidad minima es en el sector "Consumer Defensive" con 0.0121 .
+Sharpe Ratio más alto es en el sector "Industrials" con 0.062 .
+
+
+NOTE: El SharpRatio no aparece correcto, porque los valores son muy pequenos.Sin embargo, es la formula de la clase.

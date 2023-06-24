@@ -1,0 +1,236 @@
+---
+title: "Tarea3"
+author: "Julius Döbelt"
+date: "03 9 2022"
+output: html_document
+---
+
+Librerías
+```{r message=FALSE, warning=FALSE}
+library("stats")
+library("psych")
+library("readxl")
+library("MASS")
+library("ISLR")
+library("fRegression")
+library("vcd")
+library("dplyr")
+library("openxlsx")
+```
+
+1
+a)
+```{r}
+setwd("C:/Users/User/Documents/Tec de Monterrey/Analysis de Datos/Tarea3")
+base <- read.csv("BaseActividad3.csv")
+str(base)
+```
+
+Una base de datos más pequeno porque no tengo un computador poderoso.
+```{r}
+set.seed(123)
+index_sample <- sample(1:length(base$isFraud), 10000)
+stripped_data <- base[index_sample,]
+
+```
+b)
+```{r}
+base[!complete.cases(base),]
+
+```
+No hay NA's en la gran base de datos, qué es bueno!
+
+c)
+No es necesario de estandizar variables.
+
+d)
+Creo dummy variables para la columna "type", porque es una variable categorial y necesitolo para la análisis.
+
+Para la gran base de datos:
+```{r}
+base$type_payment <- ifelse(base$type=="PAYMENT",1,0)
+base$type_transfer <- ifelse(base$type=="TRANSFER",1,0)
+base$type_cashout <- ifelse(base$type=="CASH_OUT",1,0)
+base$type_cashin <- ifelse(base$type=="CASH_IN",1,0)
+base$type_debit <- ifelse(base$type=="DEBIT",1,0)
+```
+
+Para la base de datos pequeno:
+```{r}
+stripped_data$type_payment <- ifelse(stripped_data$type=="PAYMENT",1,0)
+stripped_data$type_transfer <- ifelse(stripped_data$type=="TRANSFER",1,0)
+stripped_data$type_cashout <- ifelse(stripped_data$type=="CASH_OUT",1,0)
+stripped_data$type_cashin <- ifelse(stripped_data$type=="CASH_IN",1,0)
+stripped_data$type_debit <- ifelse(stripped_data$type=="DEBIT",1,0)
+```
+
+Seleciono las columnas qué necesito para la modelación.
+
+```{r}
+new_base <- select(base, step, amount, oldbalanceOrg, newbalanceOrig, oldbalanceDest, newbalanceDest, isFraud, isFlaggedFraud, type_payment, type_transfer, type_cashin, type_cashout, type_debit)
+```
+
+```{r}
+stripped_data <- select(stripped_data, step, amount, oldbalanceOrg, newbalanceOrig, oldbalanceDest, newbalanceDest, isFraud, isFlaggedFraud, type_payment, type_transfer, type_cashin, type_cashout, type_debit)
+```
+
+2
+a)Seperación de los datos en datos para "Training" y datos para "Testing"
+```{r message=FALSE, warning=FALSE}
+library("caret")
+
+set.seed(11)
+train = createDataPartition(y = stripped_data$isFraud, p=0.8, list=FALSE, times = 1)
+datosTrain = stripped_data[train,]
+datosTest = stripped_data[-train,]
+
+```
+
+b+c)
+
+Backward model
+```{r, message=FALSE, warning=FALSE,results='hide'}
+fraud.glm.backward<- glm(isFraud ~ ., family=binomial(link="logit"), datosTrain)
+fraud.backward <- step(fraud.glm.backward, direction = "backward", data=datosTrain)
+```
+
+```{r}
+summary(fraud.backward)
+```
+Las variables importantes para predecir el fraud con la dirección "backward" son: amount, oldbalanceOrg, newBalanceOrig y type_cashout.
+El AIC es 11.132
+
+
+Forward Model
+```{r, message=FALSE, warning=FALSE, results='hide'}
+fraud.glm.forward <- glm(isFraud ~ ., family=binomial(link="logit"), datosTrain)
+fraud.forward <- step(fraud.glm.forward, direction = "forward", data=datosTrain)
+```
+
+```{r}
+summary(fraud.forward)
+```
+Las variables importantes para predecir el fraud con la dirección "forward" son: step, amount, oldbalanceOrg,oldbalanceDest, newbalanceOrig, newbalanceDest, type_payment, type_transfer, type_cashin, type_debit y type_cashout. 
+
+AIC para el modelo "forward" es 24.09 que significa la modelo con dirección "backward" es mejor y voy a usarlo para el training de mi modelo. También sería posible entrenar dos modelos con los resultados de backward y forward y comparar los resultados pero conozco que el modelo backward es mejor y mi computador es muy lento.
+
+
+Para el training del modelo necesitamos la gran base de datos y debemos seperar los datos en "Training" y "Test":
+```{r message=FALSE, warning=FALSE}
+set.seed(11)
+train = createDataPartition(y = new_base$isFraud, p=0.8, list=FALSE, times = 1)
+realTrain = new_base[train,]
+realTest = new_base[-train,]
+
+```
+
+
+Ahora podemos train nuestro modelo con la formula de arriba (de modelo backward porque es mejor):
+```{r, warning=FALSE}
+realTrain$isFraud <- as.factor(realTrain$isFraud)
+
+modelo_fraud<-train(isFraud ~ amount + oldbalanceOrg + newbalanceOrig + type_cashout, data=realTrain, method="glm", family=binomial(link="logit"))
+modelo_fraud
+```
+
+
+```{r}
+modelo_fraud$finalModel
+```
+AIC es 11630 
+
+3
+a)
+```{r}
+predictTest <- predict(modelo_fraud, realTest)
+```
+
+```{r}
+pred_credit <- predict(modelo_fraud,realTest, type="prob")
+pred_credit[1:10, 1:2]
+```
+
+```{r}
+predictTest <- as.numeric(levels(predictTest))[predictTest]
+
+cor(realTest$isFraud, predictTest)
+```
+
+b)
+La matriz de confusión
+FALSE y TRUE son la predicción del modelo. 0 y 1 son los datos reales del Test!
+```{r}
+predicciones <- ifelse(pred_credit$`1` > 0.5, yes = "predicted_TRUE", no = "predicted_FALSE")
+matriz_confusión <- table(predicciones, realTest$isFraud)
+matriz_confusión
+```
+0 es igual de False
+1 es igual de True
+
+Nuestro modelo está bueno, porque la mayoría de las predicciones son correctos (True Negative). Sin embargo, con un Cutoff de 0.5 hay más False Negatives que True Positives y hay valores mejores para el cutoff para reducir los False Negatives.
+
+```{r}
+predicciones <- ifelse(pred_credit$`1` > 0.05, yes = "predicted_TRUE", no = "predicted_FALSE")
+matriz_confusión <- table(predicciones, realTest$isFraud)
+matriz_confusión
+```
+
+
+c)
+```{r}
+Recall <- matriz_confusión[2,2]/(matriz_confusión[2,2] + matriz_confusión[1,2])
+Recall
+Precision <- matriz_confusión[2,2]/(matriz_confusión[2,2] + matriz_confusión[2,1])
+Precision
+```
+Este modelo con un Cutoff de 0.05 tiene más de 50% de "Recall" y más de 40% de "Precision". Si aumento  el "Recall", "Precision" reduce más rapido.
+
+4)
+Comparo el modelo con el modelo Lasso.
+
+```{r}
+library("glmnet")
+x = model.matrix(isFraud ~ ., stripped_data)[,-7]
+y = stripped_data$isFraud
+```
+
+```{r, warning=FALSE}
+set.seed(123) 
+cv.outL = cv.glmnet(x,y,family="binomial",alpha=1,nfolds=5) 
+plot(cv.outL)
+bestlambda = cv.outL$lambda.min
+bestlambda
+```
+
+```{r, warning=FALSE}
+set.seed(123)
+lasso.mod = glmnet(x,y,alpha=1, family="binomial", lambda=bestlambda, standardize=TRUE)
+outL = glmnet(x,y,family="binomial",alpha=1)
+coef(cv.outL,s=bestlambda)
+```
+```{r}
+# Predicciones con el modelo LASSO
+realTestSinFraud <- realTest[,-7]
+pred <- predict(lasso.mod, as.matrix(realTestSinFraud[,1:12]), type="link")
+predResponse <- predict(lasso.mod, as.matrix(realTestSinFraud[,1:12]), type="response")
+pred[1:10]
+predResponse[1:10]
+```
+
+```{r}
+predicciones2 <- ifelse(predResponse > 0.20, yes = "predicted_TRUE", no = "predicted_FALSE")
+matriz_confusión <- table(predicciones2, realTest$isFraud)
+matriz_confusión
+```
+
+No sé porque las valores de la predicción son todos los mismos. La predicción para la variable "predResponse" no tiene probabilidades pero soló valores de 0.5. Si tengo un Cutoff menor de 0.5, todos los preddiciones son True, que es muy malo. Hasta la seleción de variables todo es bueno. Por eso no puedo comparar los resultados de los dos modelos.
+
+La ventaja del modelo Lasso es que es muy rápido. La desventaja es que las calculaciones son más dificiles de entender y las funciones en R para el modelo Lasso no son tan conocidos como las del modelo glm.
+
+
+
+
+
+
+
+
