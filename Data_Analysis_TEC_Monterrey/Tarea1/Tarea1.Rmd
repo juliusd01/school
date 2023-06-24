@@ -1,0 +1,150 @@
+---
+title: "Tarea Datos Masivos"
+author: "Julius Döbelt"
+date: "18.08.2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+La siguiente tarea busca reforzar tu aprendiza de los temas cubiertos en clase, así como poner en práctica tus habilidades en
+el manejo de datos masivos.
+Resuelve cada uno de los puntos para la base de datos *cars.csv* No olvides cargar las librerias necesarias antes de iniciar
+con tu programa. Para esto puedes utilizar el siguiente chunk:
+
+```{r}
+library(readr)
+cars <- read_csv("C:/Users/User/Downloads/cars.csv")
+```
+
+
+### Pregunta 1
+
+Almacena la información del archivo *cars.csv* en una variable llamada mis_datos y revisa su estructura con la función str()
+
+```{r}
+mis_datos <- as.data.frame(cars)
+str(mis_datos)
+
+```
+
+Como puedes ver, la base de datos cuenta con 428 observaciones y 15 variables.
+Las variables incluidas son:
+- Make = La marca del fabricante del automóvil
+- Model = El modelo del automóvil
+- Type = El tipo de automóvil
+- Origin = En dónde fue fabricado
+- DriveTrain = Indica el tipo de transmición
+- MSRP = Es el precio de venta en dólares sugerido por el fabricate
+- Invoice = Es el valor de la factura del automóvil
+- EngineSize = Es el tamaño del motor
+- Cylinders = Indica con cuántos cilindros cuenta
+- Horsepower = La potencia del automóvil en caballos de fuerza
+- MPG_City = Millas por galón de combustible en la ciudad
+- MPG_Highway = Millas por galón de combustible en carretera
+- Weight = Peso del automóvil en libras
+- Wheelbase = La distancia que hay entre el eje delantero y el eje trasero 
+              en pulgadas
+- Length = La longitud del automóvil en pulgadas
+
+
+### Pregunta 2
+
+Revisa si en la variable mis_datos existen missing values, de ser así reemplazalos por la media.
+
+```{r}
+mis_datos[!complete.cases(mis_datos),]
+#Hay missing values en "EngineSize"; "Cylinders", "Horsepower", "MPG_City", "MPG_Highway", Weight", "Wheelbase" y "Length"
+mis_datos$EngineSize[is.na(mis_datos$EngineSize)] <- mean(mis_datos$EngineSize, na.rm = T)
+mis_datos$Cylinders[is.na(mis_datos$Cylinders)] <- mean(mis_datos$Cylinders, na.rm = T)
+mis_datos$Horsepower[is.na(mis_datos$Horsepower)] <- mean(mis_datos$Horsepower, na.rm = T)
+mis_datos$MPG_City[is.na(mis_datos$MPG_City)] <- mean(mis_datos$MPG_City, na.rm = T)
+mis_datos$MPG_Highway[is.na(mis_datos$MPG_Highway)] <- mean(mis_datos$MPG_Highway, na.rm = T)
+mis_datos$Weight[is.na(mis_datos$Weight)] <- mean(mis_datos$Weight, na.rm = T)
+mis_datos$Wheelbase[is.na(mis_datos$Wheelbase)] <- mean(mis_datos$Wheelbase, na.rm = T)
+mis_datos$Length[is.na(mis_datos$Length)] <- mean(mis_datos$Length, na.rm = T)
+#Tambien sería posible con una función. 
+
+```
+
+
+### Pregunta 3
+
+Utilizando algoritmos con la variable mis_datos, responde las siguientes preguntas:
+
+¿Qué marca produce más vehículos y qué marca produce menos?
+
+```{r}
+library(dplyr)
+mis_datos%>%
+  select(Make)%>%
+  count(Make)%>%
+  group_by(Make)
+
+```
+Hummer produjo el menor (1). Toyota produjo el mayor (28). 
+
+¿Cuántos autos se producen por región con transmisión delantera, cuántos con transmisión trasera y cuántos con doble transmisión (All)?
+
+```{r}
+#Es la opción más facil:
+table(mis_datos$Origin, mis_datos$DriveTrain)
+
+#También es posible:
+mis_datos%>%
+  select(Origin, DriveTrain)%>%
+  group_by(Origin)%>%
+  count(DriveTrain)
+  
+  
+```
+
+
+### Pregunta 4
+
+Encuentra cuál es el precio sugerido más caro, cuál es el precio sugerido más barato, las millas por galón promedio para ciudad y las millas por galón promedio para carretera
+
+```{r}
+mis_datos%>%
+  summarise(precio_más_caro = max(MSRP), precio_más_barato = min(MSRP), mpg_promedio_ciudad =  mean(MPG_City), mpg_promedio_carretera = mean(MPG_Highway))
+```
+
+
+### Pregunta 5 
+
+Selecciona solo las variables Make, Model, Type, Origin, DriveTrain, MSRP, Weight, Wheelbase y Lenght. Conserva solo las observaciones cuyo DriveTrain sea Front y almacena esta información en una variable llamada mis_nuevos_datos. 
+
+Imprime las primeras 7 observaciones de la variable mis_nuevos_datos
+
+```{r}
+#
+mis_nuevos_datos <- mis_datos%>%
+  filter(DriveTrain=="Front")%>%
+  select(Make, Model, Origin, DriveTrain, MSRP, Weight, Wheelbase, Length)
+head(mis_nuevos_datos, n=7)
+```
+
+
+### Pregunta 6
+
+Con la información de la variable mis_nuevos_datos, necesitamos crear 3 nuevas variables, la primera llamada Weight_kilo que indique cuál es el peso del automóvil en kilos, la segunda llamada Wheelbase_cm que muestre el valor de la variable  Wheelbase en centímetros, y una última variable llamada Length_cm que indique la longitud del vehículo en centímetros. Almacena toda esta información dentro de la variable mis_nuevos_datos
+
+```{r}
+mis_nuevos_datos%>%
+  mutate(Weight_kilo = Weight/2.205, Wheelbase_cm = Wheelbase/2.54, Length_cm = Length/2.54)
+
+#NOTE: La transformación de libras en kilos es una approximación.
+```
+
+
+### Pregunta 7
+
+Con la información de la variable mis_nuevos_datos, crea una nueva variable llamada opinion que esté en función del precio sugerido para la venta. Si el precio es mayor a 60,000 el valor de la variable opinion debe ser "Expensive", si el precio está entre 60,000 y 30,000, la variable opinion debe decir "Normal". Y si el precio es menor a 30,000 la variable opinion debe sugerir "Unexpensive". Almacena la información en la variable mis_nuevos_datos
+
+```{r}
+mis_nuevos_datos%>%
+  mutate(opinion = ifelse(MSRP>60000, "Expensive", 
+                          ifelse(MSRP>=30000, "Normal", "Unexpensive")))
+```
