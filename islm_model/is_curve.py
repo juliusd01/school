@@ -5,7 +5,28 @@ from dash.dependencies import Input, Output
 import numpy as np
 import plotly.graph_objects as go
 
-def get_Y(i, C0=600, c1=0.1, T=50, b0=50, b1=0.5, b2=0.8, G=100):
+def get_Y(i, C0=600, c1=0.1, T=50, b0=50, b1=0.5, b2=0.8, G=100) -> float:
+    """
+    This function calculates the output (Y) given the interest rate (i) and the parameters of the IS-LM model.
+    param i: interest rate
+    type i: float
+    param C0: autonomous consumption
+    type C0: int
+    param c1: marginal propensity to consume
+    type c1: float
+    param T: taxes
+    type T: int
+    param b0: autonomous investment
+    type b0: int
+    param b1: sensivity of investments regarding income Y
+    type b1: float
+    param b2: sensivity of investments regarding interest rate i
+    type b2: float
+    param G: government spending
+    type G: int
+    return: Y (income/ production of economy)
+    rtype: float
+    """
     Y = (1 / (1 - c1 - b1)) * (C0 - c1 * T + b0 + G) - (b2 / (1 - c1 - b1)) * i
     return Y
 
