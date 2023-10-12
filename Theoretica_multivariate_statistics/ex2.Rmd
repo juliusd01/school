@@ -1,0 +1,80 @@
+---
+title: "excercise2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+summary(iris)
+```
+
+Plot the Sepal.Length vs. Sepal.Width
+```{r}
+plot(iris$Sepal.Length, iris$Sepal.Width,pch=19, col=iris$Species)
+legend("topright", legend = unique(iris$Species), col = unique(iris$Species), pch = 19, title = "Species")
+
+```
+
+<p>
+Calculate the covariance of the 4 quantitative columns:
+
+```{r}
+iris_quant = iris[, c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width")]
+cov_matrix = cov(iris_quant)
+print(cov_matrix)
+```
+Calculate the correlation of the 4 columns:
+```{r}
+cor_matrix = cor(iris_quant)
+print(cor_matrix)
+```
+Now only consider the data for Species *setosa*
+
+```{r}
+library(dplyr)
+iris_setosa = iris %>%
+  filter(Species=="setosa")
+head(iris_setosa)
+```
+
+Also calculate the covariance and correlation matrix for the setosa-only dataset:
+
+```{r}
+# get cov matrix
+iris_setosa <- iris_setosa[, -5]
+cov_mat_setosa = cov(iris_setosa)
+print(cov_mat_setosa)
+```
+```{r}
+cor_mat_setosa = cor(iris_setosa)
+print(cor_mat_setosa)
+```
+*Interestingly, there is a positive covariance and correlation between all the variables in the setosa dataset. Whereas, in the big dataset, there were many negative dependencies!*
+
+Why? Because there are different groups in the data. Within the groups, the correlation and covariance is positive. However, when looking at all the points, then there is a negative covariance and correlation. (Like example of Swiss Bank Notes)
+<br>
+<br>
+2.3
+I will use the original data and transform the unit from centimeters to inches and then calculate the mean, covariation and correlation matrix:
+
+```{r}
+iris_quant_inches <- iris_quant / 2.54
+print('Mean of the col values:')
+print(colMeans(iris_quant_inches))
+```
+```{r}
+print('covariation:')
+print(cov(iris_quant_inches))
+```
+```{r}
+print('correlation:')
+print(cor(iris_quant_inches))
+```
+
+
+
+
