@@ -44,6 +44,7 @@ usersWithNumOfRatingsSorted
    .filter(_._2 >= 20)
    .count
 
+
 // TASK 3
 // Define an RDD containing (movie id, name)-pairs
 val movie_id_name = moviesRecords
@@ -59,3 +60,15 @@ val joined = movie_id_name.cogroup(movie_ratings)
 //Define an RDD that flattens out cogroup result to (movie name, rating)-pairs
 
 val joinedFlattened = joined.flatMap{ case (_, (movieNames, ratings)) => movieNames.flatMap(movieName => ratings.map(rating => (movieName, rating)))}
+
+
+// TASK 4
+// Define an RDD that has the average rating per movie with at least 5 ratings
+val MoviesWith5Ratings = ratingsRecords
+  .map(record => (record(1).toInt, record(2).toDouble)) // Map to movie id
+  .groupByKey().filter(_._2.size >= 5) // Group by key and filter movies with less than 5 ratings
+  .mapValues(ratings => ratings.sum / ratings.size)
+
+// Return movie with highest average rating
+val highestRatedMovie = MoviesWith5Ratings.reduce((a, b) => if (a._2 > b._2) a else b)._1
+
