@@ -1,0 +1,24 @@
+Sector,DiasDeTrabajo,SalarioMensual,HorasDeTrabajo,Dependientes,Casado
+Minerales no metálicos,6,Entre $10000 y $20000,6,2,False
+Metálicas básicas ,6,Más que $20000,40,2,True
+Productos metálicos ,7,Entre $10000 y $20000,40,1,True
+Productos metálicos ,5,Entre $5000 y $10000,40,1,True
+Equipo electrónico,5,Entre $5000 y $10000,40,1,False
+Equipo electrónico,5,Entre $5000 y $10000,40,3,False
+Productos metálicos ,5,Entre $5000 y $10000,40,1,False
+Muebles,5,Menos de $5000,40,2,True
+Equipo de generación eléctrica,5,Entre $10000 y $20000,40,1,True
+Otros,5,Entre $10000 y $20000,40,3,True
+Otros,5,Más que $20000,40,0,True
+Otros,5,Menos de $5000,40,0,False
+Otros,5,Menos de $5000,0,1,False
+Maquinaria y equipo ,5,Menos de $5000,0,1,False
+Papel y editorial,5,Entre $5000 y $10000,40,1,True
+Plástico y hule ,7,Entre $5000 y $10000,18,2,True
+Papel y editorial,6,Entre $10000 y $20000,40,1,False
+Equipo de transporte ,5,Entre $10000 y $20000,40,2,True
+Productos metálicos ,5,Entre $10000 y $20000,40,1,False
+Productos químicos,5,Entre $10000 y $20000,40,1,False
+Equipo electrónico,5,Entre $10000 y $20000,40,2,True
+Equipo de transporte ,5,Entre $10000 y $20000,40,1,False
+Equipo electrónico,5,Entre $5000 y $10000,40,2,True
